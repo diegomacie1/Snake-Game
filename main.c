@@ -26,7 +26,7 @@ void printMap(wchar_t map[ROWS][COLS], int score);
 void moveSnake(Point snake[], int snakeSize, char direction);
 void generateFood(Point *food, Point snake[], int snakeSize);
 void updateGame(Point snake[], int *pSnakeSize, Point *pApple, int *pScore, char direction, bool *pGameOver, wchar_t map[ROWS][COLS]);
-void userIput(char input, char *pDirection);
+void userInput(char input, char *pDirection);
 bool isWall(wchar_t character);
 void setCursorPosition(int x, int y);
 void setupConsole();
@@ -75,13 +75,13 @@ int main(){
         // HANDLE USER INPUT (NON-BLOCKING)
         if (_kbhit()) { // Check if a key has been pressed
             char input = _getch(); // Get the key without waiting
-            userIput(input, &direction);
+            userInput(input, &direction);
         }
 
         updateGame(snake, &snakeSize, &apple, &score, direction, &gameOver, map);
         
         // Control the speed
-        Sleep(150);
+        Sleep(750);
     }
     _getch();
     return 0;
@@ -89,7 +89,7 @@ int main(){
 
 void setupMap(wchar_t map[ROWS][COLS]) {
 
-        wchar_t Layout[ROWS][COLS] = {
+        wchar_t Layout[ROWS][COLS + 1] = {
         L"┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓",
         L"┃                                      ┃",
         L"┃                                      ┃",
@@ -212,7 +212,6 @@ void updateGame(Point snake[], int *pSnakeSize, Point *pApple, int *pScore, char
         snake[*pSnakeSize - 1] = tail_position;
 
         *pScore += 10;
-        generateFood(pApple, snake, *pSnakeSize);
         PlaySound("creamy", NULL, SND_FILENAME | SND_ASYNC);
     }
 
@@ -225,7 +224,7 @@ void updateGame(Point snake[], int *pSnakeSize, Point *pApple, int *pScore, char
 
 }
 
-void userIput(char input, char *pDirection) {
+void userInput(char input, char *pDirection) {
 
     // Change direction, but don't let the snake reverse on itself.
     // For example, if moving up ('w'), you can't go down ('s').
