@@ -1,15 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <windows.h>
 #include <stdbool.h>
-#include <conio.h>
 #include <wchar.h>
 #include <locale.h>
 #include <time.h>
-#include <io.h>
 #include <fcntl.h>
-#include <windows.h>
-#include <mmsystem.h>
+#include <unistd.h>
 
 #define ROWS 20
 #define COLS 40
@@ -22,68 +18,34 @@ typedef struct {
 } Point;
 
 void setupMap(wchar_t map[ROWS][COLS]);
-void printMap(wchar_t map[ROWS][COLS], int score);
-void moveSnake(Point snake[], int snakeSize, char direction);
-void generateFood(Point *food, Point snake[], int snakeSize);
-void updateGame(Point snake[], int *pSnakeSize, Point *pApple, int *pScore, char direction, bool *pGameOver, wchar_t map[ROWS][COLS]);
-void userInput(char input, char *pDirection);
+void draw(wchar_t map[ROWS][COLS]);
+void snakeStart(Point *snake, wchar_t map[ROWS][COLS]);
 bool isWall(wchar_t character);
-void setCursorPosition(int x, int y);
-void setupConsole();
+void generateFood(Point *food, Point snake[], int snakeSize);
 
-
-int main(){
-    _setmode(_fileno(stdout), _O_U16TEXT);
-    setlocale(LC_ALL, "");
-    srand(time(NULL));
-
+int main() {
+    Point snake;
     wchar_t map[ROWS][COLS];
-    Point snake[ROWS * COLS];
-    Point apple;
-    int snakeSize = 3;
-    char direction = 'd';
-    bool gameOver = false;
-    int score = 0;
-    
-    setupConsole();
-    setupMap(map);
-    
-    // Initialize snake's starting position in the middle
-    snake[0] = (Point){ROWS / 2, COLS / 2};
-    snake[1] = (Point){ROWS / 2, COLS / 2 - 1};
-    snake[2] = (Point){ROWS / 2, COLS / 2 - 2};
-    generateFood(&apple, snake, snakeSize);
+    setlocale(LC_ALL, ""); // Because I'm using Wchar, this line is needed to print them
+    srand(time(NULL)); // This randomizes even more the apple's new positions
 
-     while (!gameOver) {
+    snakeStart(&snake, map);
 
-        // --- RENDER/DRAW PHASE ---
-        wchar_t displayMap[ROWS][COLS];
-        for (int i = 0; i < ROWS; i++) {
-            for (int j = 0; j < COLS; j++) {
-                displayMap[i][j] = map[i][j];
-            }
-        }
+    while (true) {
+        // Reset the map (Clear the old snake position)
+        setupMap(map);
 
-        displayMap[apple.x][apple.y] = APPLE;
-        // Draw the snake on the canvas
-        for (int i = 0; i < snakeSize; i++) {
-            displayMap[snake[i].x][snake[i].y] = SNAKE;
-        }
+        // Put the snake on the map at its new position
+        map[snake.x][snake.y] = SNAKE;
 
-        printMap(displayMap, score);
+        // Draw the map
+        system("clear"); // Wipe the old frame
+        draw(map); // Draw the new frame
 
-        // HANDLE USER INPUT (NON-BLOCKING)
-        if (_kbhit()) { // Check if a key has been pressed
-            char input = _getch(); // Get the key without waiting
-            userInput(input, &direction);
-        }
-
-        updateGame(snake, &snakeSize, &apple, &score, direction, &gameOver, map);
-        
-        // Control the speed
-        Sleep(750);
+        // 5. Wait for 0.1 seconds (100,000 microseconds)
+        usleep(100000); 
     }
-    _getch();
+
     return 0;
 }
 
@@ -120,38 +82,35 @@ void setupMap(wchar_t map[ROWS][COLS]) {
     }
 }
 
-void printMap(wchar_t map[ROWS][COLS], int score) {
-    setCursorPosition(0, 0); // Reset cursor to top-left for smooth animation
-    for (int i = 0; i < ROWS; i++)
-    {
-        for (int j = 0; j < COLS; j++)
-        {   
+void draw(wchar_t map[ROWS][COLS]){
+    
+    for (int i = 0; i < ROWS; i++) {
+        for (int j = 0; j < COLS; j++) {   
             wprintf(L"%lc", map[i][j]);
         }
         wprintf(L"\n");
     }
-    wprintf(L"SCORE: %d\n", score);
 }
 
-void moveSnake(Point snake[], int snakeSize, char direction) {
-    // Calculate the new position for the head
-    Point newHead = snake[0];
-    switch (direction) {
-        case 'w': newHead.x--; break;
-        case 's': newHead.x++; break;
-        case 'a': newHead.y--; break;
-        case 'd': newHead.y++; break;
-    }
+// Function to star the snake
+void snakeStart(Point *snake, wchar_t map[ROWS][COLS]){
 
-    // Move the snake's body forward (the "caterpillar" effect)
-    for (int i = snakeSize - 1; i > 0; i--) {
-        snake[i] = snake[i - 1];
-    }
+    // Create the snake variable in the struct
+    snake->x = 10; // Row 10
+    snake->y = 20; // Column 20
 
-    // Move the snake's head to the new position
-    snake[0] = newHead;
+    // Put the snake icon into the map at those coordinates
+    map[snake->x][snake->y] = SNAKE;
+
 }
 
+// Function to detect the walls
+bool isWall(wchar_t character) {
+    return character == L'┏' || character == L'┓' || character == L'┗' || character == L'┛' || character == L'━' || character == L'┃';
+}
+
+
+// Function to generate food
 void generateFood(Point *apple, Point snake[], int snakeSize) {
     bool onSnake;
     do {
@@ -168,86 +127,4 @@ void generateFood(Point *apple, Point snake[], int snakeSize) {
             }
         }
     } while (onSnake);
-}
-
-// --- CHECK FOR COLLISIONS ---
-void updateGame(Point snake[], int *pSnakeSize, Point *pApple, int *pScore, char direction, bool *pGameOver, wchar_t map[ROWS][COLS]) {
-        Point nextHead = snake[0];
-
-        // Calculate where the head WILL BE on the next frame
-        switch (direction) {
-            case 'w': nextHead.x--; break;
-            case 's': nextHead.x++; break;
-            case 'a': nextHead.y--; break;
-            case 'd': nextHead.y++; break;
-        }
-        // Wall Collision Check
-        // Using the isWall function
-        if (isWall(map[nextHead.x][nextHead.y])) {
-            *pGameOver = true;
-            return; // Exit this function
-        }
-        // Self Collision Check
-        // Loop through the snake's body to see if the next spot is part of itself
-        for (int i = 0; i < *pSnakeSize; i++) {
-            if (nextHead.x == snake[i].x && nextHead.y == snake[i].y) {
-                *pGameOver = true;
-                return; // Exit this functin 
-            }
-        }
-
-    // Check for food, but don't respawn it yet
-    bool foodWasEaten = false;
-    // Food Check
-    if (nextHead.x == pApple->x && nextHead.y == pApple->y) {
-        // Store the current tail's position BEFORE growing the snake
-        Point tail_position = snake[*pSnakeSize - 1];
-        *pSnakeSize += 3;
-        foodWasEaten = true;
-        
-        // Place the new segments at the old tail's position.
-        // This gives them a safe, valid starting point.
-        snake[*pSnakeSize - 3] = tail_position;
-        snake[*pSnakeSize - 2] = tail_position;
-        snake[*pSnakeSize - 1] = tail_position;
-
-        *pScore += 10;
-        PlaySound("creamy", NULL, SND_FILENAME | SND_ASYNC);
-    }
-
-    moveSnake(snake, *pSnakeSize, direction);
-
-     // If food was eaten, generate a new one AFTER the snake has moved
-    if (foodWasEaten) {
-        generateFood(pApple, snake, *pSnakeSize);
-    }
-
-}
-
-void userInput(char input, char *pDirection) {
-
-    // Change direction, but don't let the snake reverse on itself.
-    // For example, if moving up ('w'), you can't go down ('s').
-    if ((input == 'w' || input == 'W') && *pDirection != 's') *pDirection = 'w';
-    else if ((input == 's' || input == 'S') && *pDirection != 'w') *pDirection = 's';
-    else if ((input == 'a' || input == 'A') && *pDirection != 'd') *pDirection = 'a';
-    else if ((input == 'd' || input == 'D') && *pDirection != 'a') *pDirection = 'd';
-
-}
-
-bool isWall(wchar_t character) {
-    return character == L'┏' || character == L'┓' || character == L'┗' || character == L'┛' || character == L'━' || character == L'┃';
-}
-
-void setCursorPosition(int x, int y) {
-    COORD pos = {(short)x, (short)y};
-    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), pos);
-}
-
-void setupConsole() {
-    HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
-    CONSOLE_CURSOR_INFO cursorInfo;
-    GetConsoleCursorInfo(hConsole, &cursorInfo);
-    cursorInfo.bVisible = FALSE;
-    SetConsoleCursorInfo(hConsole, &cursorInfo);
 }
