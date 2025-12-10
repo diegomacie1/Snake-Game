@@ -6,6 +6,8 @@
 #include <time.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <termios.h>
+#include <sys/ioctl.h>
 
 #define ROWS 20
 #define COLS 40
@@ -21,31 +23,57 @@ void setupMap(wchar_t map[ROWS][COLS]);
 void draw(wchar_t map[ROWS][COLS]);
 void snakeStart(Point *snake, wchar_t map[ROWS][COLS]);
 bool isWall(wchar_t character);
+void handleInput(char *direction);
 void generateFood(Point *food, Point snake[], int snakeSize);
+void enableRawMode();
+void disableRawMode();
+int kbhit();
 
 int main() {
     Point snake;
+    Point apple;
     wchar_t map[ROWS][COLS];
+    char direction = 's'; // Default starting direction (Down)
+
     setlocale(LC_ALL, ""); // Because I'm using Wchar, this line is needed to print them
+    wprintf(L"\x1b[?25l"); // To hide the cursor
     srand(time(NULL)); // This randomizes even more the apple's new positions
 
+    enableRawMode();
+
+    setupMap(map);
     snakeStart(&snake, map);
+    generateFood(&apple, &snake, 1);
+    draw(map);
+    system("clear");
 
     while (true) {
-        // Reset the map (Clear the old snake position)
-        setupMap(map);
 
-        // Put the snake on the map at its new position
-        map[snake.x][snake.y] = SNAKE;
+        handleInput(&direction); // Pass the address of 'direction'
 
-        // Draw the map
-        system("clear"); // Wipe the old frame
+        if (direction == 'w') snake.x--;
+        else if (direction == 's') snake.x++;
+        else if (direction == 'a') snake.y--;
+        else if (direction == 'd') snake.y++;
+
+        setupMap(map); // Reset the map (Clear the old snake position)
+
+        map[snake.x][snake.y] = SNAKE; // Puts the snake on the map at its new position
+        map[apple.x][apple.y] = APPLE; // Puts the apple
+
+        if (snake.x == apple.x && snake.y == apple.y) { // Check for collision with Apple
+            generateFood(&apple, &snake, 1); // Generates a new one.
+            // More to come
+        }
+
+        wprintf(L"\x1b[H"); // stops the flickering
         draw(map); // Draw the new frame
 
-        // 5. Wait for 0.1 seconds (100,000 microseconds)
-        usleep(100000); 
+        usleep(200000); // 5. Wait for 0.2 seconds (200,000 microseconds)
     }
 
+    disableRawMode(); // Turns off game mode
+    wprintf(L"\x1b[?25h"); // Shows the cursor again
     return 0;
 }
 
@@ -109,7 +137,6 @@ bool isWall(wchar_t character) {
     return character == L'┏' || character == L'┓' || character == L'┗' || character == L'┛' || character == L'━' || character == L'┃';
 }
 
-
 // Function to generate food
 void generateFood(Point *apple, Point snake[], int snakeSize) {
     bool onSnake;
@@ -127,4 +154,39 @@ void generateFood(Point *apple, Point snake[], int snakeSize) {
             }
         }
     } while (onSnake);
+}
+
+// We pass 'direction' as a pointer so we can modify the original variable
+void handleInput(char *direction) {
+    if (kbhit()) {
+        char input = getchar(); // Read the key
+        
+        // Only update if it is a valid movement key
+        if (input == 'w' || input == 'a' || input == 's' || input == 'd') {
+            *direction = input; // Update the value at the pointer's address
+        }
+    }
+}
+
+// Enable "Raw Mode" (disable waiting for Enter)
+void enableRawMode() {
+    struct termios term;
+    tcgetattr(STDIN_FILENO, &term); // Get current settings
+    term.c_lflag &= ~(ICANON | ECHO); // Disable buffering (ICANON) and local echo (ECHO)
+    tcsetattr(STDIN_FILENO, TCSANOW, &term); // Apply settings
+}
+
+// Disable "Raw Mode" (restore settings when game ends)
+void disableRawMode() {
+    struct termios term;
+    tcgetattr(STDIN_FILENO, &term);
+    term.c_lflag |= (ICANON | ECHO); // Re-enable them
+    tcsetattr(STDIN_FILENO, TCSANOW, &term);
+}
+
+// Check if a key has been pressed
+int kbhit() {
+    int bytesWaiting;
+    ioctl(STDIN_FILENO, FIONREAD, &bytesWaiting);
+    return bytesWaiting;
 }
