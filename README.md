@@ -1,2 +1,2 @@
 # Snake-Game
-The classic snake game in C. Play on your windows console
+The classic Snake Game on the Linux terminal
