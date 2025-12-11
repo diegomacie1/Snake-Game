@@ -12,7 +12,7 @@
 #define ROWS 20
 #define COLS 40
 #define EMPTY L' '
-#define APPLE L'Q'
+#define APPLE L'O'
 #define SNAKE L'■'
 
 typedef struct {
@@ -21,7 +21,7 @@ typedef struct {
 
 void setupMap(wchar_t map[ROWS][COLS]);
 void draw(wchar_t map[ROWS][COLS]);
-void snakeStart(Point *snake, wchar_t map[ROWS][COLS]);
+void snakeStart(Point snake[], wchar_t map[ROWS][COLS]);
 bool isWall(wchar_t character);
 void handleInput(char *direction);
 void generateFood(Point *food, Point snake[], int snakeSize);
@@ -30,10 +30,12 @@ void disableRawMode();
 int kbhit();
 
 int main() {
-    Point snake;
+    Point snake[ROWS * COLS];
+    int snakeSize = 1;
     Point apple;
     wchar_t map[ROWS][COLS];
     char direction = 's'; // Default starting direction (Down)
+    bool gameOver = false;
 
     setlocale(LC_ALL, ""); // Because I'm using Wchar, this line is needed to print them
     wprintf(L"\x1b[?25l"); // To hide the cursor
@@ -42,28 +44,55 @@ int main() {
     enableRawMode();
 
     setupMap(map);
-    snakeStart(&snake, map);
-    generateFood(&apple, &snake, 1);
+    snakeStart(snake, map);
+    generateFood(&apple, snake, snakeSize);
+    map[apple.x][apple.y] = APPLE; // Puts the apple
+    map[snake[0].x][snake[0].y] = SNAKE; // Draw head
     draw(map);
     system("clear");
 
     while (true) {
 
-        handleInput(&direction); // Pass the address of 'direction'
-
-        if (direction == 'w') snake.x--;
-        else if (direction == 's') snake.x++;
-        else if (direction == 'a') snake.y--;
-        else if (direction == 'd') snake.y++;
-
         setupMap(map); // Reset the map (Clear the old snake position)
 
-        map[snake.x][snake.y] = SNAKE; // Puts the snake on the map at its new position
-        map[apple.x][apple.y] = APPLE; // Puts the apple
+        for (int i = snakeSize - 1; i > 0; i--) {
+            snake[i] = snake[i - 1];
+        }
 
-        if (snake.x == apple.x && snake.y == apple.y) { // Check for collision with Apple
-            generateFood(&apple, &snake, 1); // Generates a new one.
-            // More to come
+        handleInput(&direction); // Pass the address of 'direction'
+        
+        if (direction == 'w') snake[0].x--;
+        else if (direction == 's') snake[0].x++;
+        else if (direction == 'a') snake[0].y--;
+        else if (direction == 'd') snake[0].y++;
+
+        if (snake[0].x <= 0 || snake[0].x >= ROWS - 1 || // Check Wall Collision
+            snake[0].y <= 0 || snake[0].y >= COLS - 1) {
+            gameOver = true;
+        }
+
+        for (int i = 1; i < snakeSize; i++) { // Check Self Collision
+            if (snake[0].x == snake[i].x && snake[0].y == snake[i].y) {
+                gameOver = true;
+            }
+        }
+
+        if (gameOver) break;
+
+        if (snake[0].x == apple.x && snake[0].y == apple.y) { 
+            snakeSize++; // Grow!
+            generateFood(&apple, snake, snakeSize); 
+            
+             if (snakeSize >= (ROWS - 2) * (COLS - 2)) { // Win Condition Check
+                system("clear");
+                wprintf(L"YOU WON!\n");
+                break;
+            }
+        }
+        map[apple.x][apple.y] = APPLE;
+
+        for (int i = 0; i < snakeSize; i++) {
+            map[snake[i].x][snake[i].y] = SNAKE;
         }
 
         wprintf(L"\x1b[H"); // stops the flickering
@@ -74,8 +103,14 @@ int main() {
 
     disableRawMode(); // Turns off game mode
     wprintf(L"\x1b[?25h"); // Shows the cursor again
+
+    if (gameOver) {
+        printf("\nGAME OVER!\nYour Score: %d\n", snakeSize - 1);
+    }
+
     return 0;
 }
+    wchar_t map[ROWS][COLS];
 
 void setupMap(wchar_t map[ROWS][COLS]) {
 
@@ -121,14 +156,14 @@ void draw(wchar_t map[ROWS][COLS]){
 }
 
 // Function to star the snake
-void snakeStart(Point *snake, wchar_t map[ROWS][COLS]){
+void snakeStart(Point snake[], wchar_t map[ROWS][COLS]){
 
     // Create the snake variable in the struct
-    snake->x = 10; // Row 10
-    snake->y = 20; // Column 20
+    snake[0].x = 10; // Row 10
+    snake[0].y = 20; // Column 20
 
     // Put the snake icon into the map at those coordinates
-    map[snake->x][snake->y] = SNAKE;
+    map[snake[0].x][snake[0].y] = SNAKE;
 
 }
 
@@ -159,11 +194,31 @@ void generateFood(Point *apple, Point snake[], int snakeSize) {
 // We pass 'direction' as a pointer so we can modify the original variable
 void handleInput(char *direction) {
     if (kbhit()) {
-        char input = getchar(); // Read the key
+        char key = getchar(); // Read the key pressed
         
-        // Only update if it is a valid movement key
-        if (input == 'w' || input == 'a' || input == 's' || input == 'd') {
-            *direction = input; // Update the value at the pointer's address
+        switch (key) {
+            case 'a':
+                // Only go LEFT if we aren't currently going RIGHT ('d')
+                if (*direction != 'd') *direction = 'a';
+                break;
+            case 'd':
+                // Only go RIGHT if we aren't currently going LEFT ('a')
+                if (*direction != 'a') *direction = 'd';
+                break;
+            case 'w':
+                // Only go UP if we aren't currently going DOWN ('s')
+                if (*direction != 's') *direction = 'w';
+                break;
+            case 's':
+                // Only go DOWN if we aren't currently going UP ('w')
+                if (*direction != 'w') *direction = 's';
+                break;
+            case 'x':
+                // Manual exit
+                disableRawMode();
+                wprintf(L"\x1b[?25h");
+                exit(0);
+                break;
         }
     }
 }
