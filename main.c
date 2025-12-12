@@ -25,88 +25,99 @@ void snakeStart(Point snake[], wchar_t map[ROWS][COLS]);
 bool isWall(wchar_t character);
 void handleInput(char *direction);
 void generateFood(Point *food, Point snake[], int snakeSize);
+char gameOverScreen(int score);
 void enableRawMode();
 void disableRawMode();
 int kbhit();
 
 int main() {
-    Point snake[ROWS * COLS];
-    int snakeSize = 1;
-    Point apple;
-    wchar_t map[ROWS][COLS];
-    char direction = 's'; // Default starting direction (Down)
-    bool gameOver = false;
-
+    
     setlocale(LC_ALL, ""); // Because I'm using Wchar, this line is needed to print them
     wprintf(L"\x1b[?25l"); // To hide the cursor
     srand(time(NULL)); // This randomizes even more the apple's new positions
-
     enableRawMode();
 
-    setupMap(map);
-    snakeStart(snake, map);
-    generateFood(&apple, snake, snakeSize);
-    map[apple.x][apple.y] = APPLE; // Puts the apple
-    map[snake[0].x][snake[0].y] = SNAKE; // Draw head
-    draw(map);
-    system("clear");
+    bool isGameRunning = true;
+    bool keepPlaying = true;
 
-    while (true) {
+    while (keepPlaying) {
+
+        Point snake[ROWS * COLS];
+        int snakeSize = 1;
+        Point apple;
+        wchar_t map[ROWS][COLS];
+        char direction = 's'; // Default starting direction (Down)
+        bool isGameRunning = true;
 
         setupMap(map); // Reset the map (Clear the old snake position)
+        snakeStart(snake, map);
+        generateFood(&apple, snake, snakeSize);
 
-        for (int i = snakeSize - 1; i > 0; i--) {
-            snake[i] = snake[i - 1];
-        }
+        map[apple.x][apple.y] = APPLE; 
+        map[snake[0].x][snake[0].y] = SNAKE; 
+        draw(map);
+        system("clear");
 
-        handleInput(&direction); // Pass the address of 'direction'
-        
-        if (direction == 'w') snake[0].x--;
-        else if (direction == 's') snake[0].x++;
-        else if (direction == 'a') snake[0].y--;
-        else if (direction == 'd') snake[0].y++;
+        while (isGameRunning) {
 
-        if (snake[0].x <= 0 || snake[0].x >= ROWS - 1 || // Check Wall Collision
-            snake[0].y <= 0 || snake[0].y >= COLS - 1) {
-            gameOver = true;
-        }
+            setupMap(map);
 
-        for (int i = 1; i < snakeSize; i++) { // Check Self Collision
-            if (snake[0].x == snake[i].x && snake[0].y == snake[i].y) {
-                gameOver = true;
+            for (int i = snakeSize - 1; i > 0; i--) {
+                snake[i] = snake[i - 1];
             }
-        }
-
-        if (gameOver) break;
-
-        if (snake[0].x == apple.x && snake[0].y == apple.y) { 
-            snakeSize++; // Grow!
-            generateFood(&apple, snake, snakeSize); 
+    
+            handleInput(&direction); // Pass the address of 'direction'
             
-             if (snakeSize >= (ROWS - 2) * (COLS - 2)) { // Win Condition Check
-                system("clear");
-                wprintf(L"YOU WON!\n");
-                break;
+            if (direction == 'w') snake[0].x--;
+            else if (direction == 's') snake[0].x++;
+            else if (direction == 'a') snake[0].y--;
+            else if (direction == 'd') snake[0].y++;
+    
+            if (isWall(map[snake[0].x][snake[0].y])) { // Collision with tthe wall check
+                isGameRunning = false;
             }
+    
+            for (int i = 1; i < snakeSize; i++) { // Check Self Collision
+                if (snake[0].x == snake[i].x && snake[0].y == snake[i].y) {
+                    isGameRunning = false;
+                }
+            }
+    
+            if (!isGameRunning) break; // Exits the loop
+    
+            if (snake[0].x == apple.x && snake[0].y == apple.y) { 
+                snakeSize++; // Grow!
+                generateFood(&apple, snake, snakeSize); 
+                
+                 if (snakeSize >= (ROWS - 2) * (COLS - 2)) { // Win Condition Check
+                    system("clear");
+                    wprintf(L"YOU WON!\n");
+                    isGameRunning = false; // Breask the loop on win
+                }
+            }
+            map[apple.x][apple.y] = APPLE;
+    
+            for (int i = 0; i < snakeSize; i++) {
+                map[snake[i].x][snake[i].y] = SNAKE;
+            }
+    
+            wprintf(L"\x1b[H"); // stops the flickering
+            draw(map); // Draw the new frame
+            
+            usleep(200000); // 5. Wait for 0.2 seconds (200,000 microseconds)
         }
-        map[apple.x][apple.y] = APPLE;
-
-        for (int i = 0; i < snakeSize; i++) {
-            map[snake[i].x][snake[i].y] = SNAKE;
+        
+        int choice = gameOverScreen(snakeSize - 1);
+    
+        if (choice == 2)
+        {
+            keepPlaying = false;
         }
 
-        wprintf(L"\x1b[H"); // stops the flickering
-        draw(map); // Draw the new frame
-
-        usleep(200000); // 5. Wait for 0.2 seconds (200,000 microseconds)
     }
-
+    
     disableRawMode(); // Turns off game mode
     wprintf(L"\x1b[?25h"); // Shows the cursor again
-
-    if (gameOver) {
-        printf("\nGAME OVER!\nYour Score: %d\n", snakeSize - 1);
-    }
 
     return 0;
 }
@@ -221,6 +232,40 @@ void handleInput(char *direction) {
                 break;
         }
     }
+}
+
+char gameOverScreen(int score){
+
+    while (kbhit()) // In case the player presses any key after ending the game
+    {
+        getchar();
+    }
+
+    system("clear");
+    wprintf(L"\n\n\n\n");
+    wprintf(L"\n");
+    wprintf(L"   :'######::::::'###::::'##::::'##:'########:::::'#######::'##::::'##:'########:'########:: \n");
+    wprintf(L"  '##... ##::::'## ##::: ###::'###: ##.....:::::'##.... ##: ##:::: ##: ##.....:: ##.... ##:    \n");
+    wprintf(L"   ##:::..::::'##:. ##:: ####'####: ##:::::::::: ##:::: ##: ##:::: ##: ##::::::: ##:::: ##:    \n");
+    wprintf(L"   ##::'####:'##:::. ##: ## ### ##: ######:::::: ##:::: ##: ##:::: ##: ######::: ########::    \n");
+    wprintf(L"   ##::: ##:: #########: ##. #: ##: ##...::::::: ##:::: ##:. ##:: ##:: ##...:::: ##.. ##:::    \n");
+    wprintf(L"   ##::: ##:: ##.... ##: ##:.:: ##: ##:::::::::: ##:::: ##::. ## ##::: ##::::::: ##::. ##::    \n");
+    wprintf(L"  . ######::: ##:::: ##: ##:::: ##: ########::::. #######::::. ###:::: ########: ##:::. ##:    \n");
+    wprintf(L"  :......::::..:::::..::..:::::..::........::::::.......::::::...:::::........::..:::::..::    \n");
+    wprintf(L"\n");
+    wprintf(L"\n\n");
+    wprintf(L"      Score: %d\n", score);
+    wprintf(L"\n\n      Select: \n\n");
+    wprintf(L"      1 - Play Again\n");
+    wprintf(L"\n      2 - Quit\n");
+
+    while(true){
+        char choice = getchar();
+        if (choice == '1') return 1; // Play again
+        if (choice == '2') return 2; // Quit
+    }
+
+    return getchar();
 }
 
 // Enable "Raw Mode" (disable waiting for Enter)
