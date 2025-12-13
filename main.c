@@ -12,7 +12,7 @@
 #define ROWS 20
 #define COLS 40
 #define EMPTY L' '
-#define APPLE L'O'
+#define APPLE L'🍏'
 #define SNAKE L'■'
 
 typedef struct {
@@ -20,108 +20,40 @@ typedef struct {
 } Point;
 
 void setupMap(wchar_t map[ROWS][COLS]);
-void draw(wchar_t map[ROWS][COLS]);
+void draw(wchar_t map[ROWS][COLS], int score);
 void snakeStart(Point snake[], wchar_t map[ROWS][COLS]);
 bool isWall(wchar_t character);
 void handleInput(char *direction);
 void generateFood(Point *food, Point snake[], int snakeSize);
+int runGameSession();
 char gameOverScreen(int score);
 void enableRawMode();
 void disableRawMode();
 int kbhit();
 
 int main() {
-    
-    setlocale(LC_ALL, ""); // Because I'm using Wchar, this line is needed to print them
-    wprintf(L"\x1b[?25l"); // To hide the cursor
-    srand(time(NULL)); // This randomizes even more the apple's new positions
+    setlocale(LC_ALL, ""); 
+    wprintf(L"\x1b[?25l"); 
+    srand(time(NULL)); 
     enableRawMode();
 
-    bool isGameRunning = true;
     bool keepPlaying = true;
 
     while (keepPlaying) {
-
-        Point snake[ROWS * COLS];
-        int snakeSize = 1;
-        Point apple;
-        wchar_t map[ROWS][COLS];
-        char direction = 's'; // Default starting direction (Down)
-        bool isGameRunning = true;
-
-        setupMap(map); // Reset the map (Clear the old snake position)
-        snakeStart(snake, map);
-        generateFood(&apple, snake, snakeSize);
-
-        map[apple.x][apple.y] = APPLE; 
-        map[snake[0].x][snake[0].y] = SNAKE; 
-        draw(map);
-        system("clear");
-
-        while (isGameRunning) {
-
-            setupMap(map);
-
-            for (int i = snakeSize - 1; i > 0; i--) {
-                snake[i] = snake[i - 1];
-            }
-    
-            handleInput(&direction); // Pass the address of 'direction'
-            
-            if (direction == 'w') snake[0].x--;
-            else if (direction == 's') snake[0].x++;
-            else if (direction == 'a') snake[0].y--;
-            else if (direction == 'd') snake[0].y++;
-    
-            if (isWall(map[snake[0].x][snake[0].y])) { // Collision with tthe wall check
-                isGameRunning = false;
-            }
-    
-            for (int i = 1; i < snakeSize; i++) { // Check Self Collision
-                if (snake[0].x == snake[i].x && snake[0].y == snake[i].y) {
-                    isGameRunning = false;
-                }
-            }
-    
-            if (!isGameRunning) break; // Exits the loop
-    
-            if (snake[0].x == apple.x && snake[0].y == apple.y) { 
-                snakeSize++; // Grow!
-                generateFood(&apple, snake, snakeSize); 
-                
-                 if (snakeSize >= (ROWS - 2) * (COLS - 2)) { // Win Condition Check
-                    system("clear");
-                    wprintf(L"YOU WON!\n");
-                    isGameRunning = false; // Breask the loop on win
-                }
-            }
-            map[apple.x][apple.y] = APPLE;
-    
-            for (int i = 0; i < snakeSize; i++) {
-                map[snake[i].x][snake[i].y] = SNAKE;
-            }
-    
-            wprintf(L"\x1b[H"); // stops the flickering
-            draw(map); // Draw the new frame
-            
-            usleep(200000); // 5. Wait for 0.2 seconds (200,000 microseconds)
-        }
         
-        int choice = gameOverScreen(snakeSize - 1);
-    
-        if (choice == 2)
-        {
+        int finalScore = runGameSession(); // Run the game and get the score
+
+        int choice = gameOverScreen(finalScore); // Show Game Over menu
+        
+        if (choice == 2) {
             keepPlaying = false;
         }
-
     }
     
-    disableRawMode(); // Turns off game mode
-    wprintf(L"\x1b[?25h"); // Shows the cursor again
-
+    disableRawMode(); 
+    wprintf(L"\x1b[?25h"); 
     return 0;
 }
-    wchar_t map[ROWS][COLS];
 
 void setupMap(wchar_t map[ROWS][COLS]) {
 
@@ -156,7 +88,7 @@ void setupMap(wchar_t map[ROWS][COLS]) {
     }
 }
 
-void draw(wchar_t map[ROWS][COLS]){
+void draw(wchar_t map[ROWS][COLS], int score){
     
     for (int i = 0; i < ROWS; i++) {
         for (int j = 0; j < COLS; j++) {   
@@ -164,6 +96,7 @@ void draw(wchar_t map[ROWS][COLS]){
         }
         wprintf(L"\n");
     }
+    wprintf(L"SCORE: %d", score);
 }
 
 // Function to star the snake
@@ -234,6 +167,78 @@ void handleInput(char *direction) {
     }
 }
 
+// This function runs ONE full game and returns the final score
+int runGameSession() {
+
+    Point snake[ROWS * COLS];
+    int snakeSize = 1;
+    int score = 5;
+    Point apple;
+    wchar_t map[ROWS][COLS];
+    char direction = 's'; 
+    bool isGameRunning = true;
+
+    setupMap(map);
+    snakeStart(snake, map);
+    generateFood(&apple, snake, snakeSize);
+
+    // Initial Draw
+    map[apple.x][apple.y] = APPLE; 
+    map[snake[0].x][snake[0].y] = SNAKE; 
+    draw(map, score);
+    system("clear");
+
+    while (isGameRunning) {
+        setupMap(map);
+
+        for (int i = snakeSize - 1; i > 0; i--) { // Update Tail
+            snake[i] = snake[i - 1];
+        }
+
+        handleInput(&direction); // User input
+        
+        if (direction == 'w') snake[0].x--; // Move Head
+        else if (direction == 's') snake[0].x++;
+        else if (direction == 'a') snake[0].y--;
+        else if (direction == 'd') snake[0].y++;
+
+        if (isWall(map[snake[0].x][snake[0].y])) { // Wall Collision
+            isGameRunning = false;
+        }
+
+        for (int i = 1; i < snakeSize; i++) { // Self Collision
+            if (snake[0].x == snake[i].x && snake[0].y == snake[i].y) {
+                isGameRunning = false;
+            }
+        }
+
+        if (!isGameRunning) break; 
+
+        if (snake[0].x == apple.x && snake[0].y == apple.y) { // Eat Apple
+            snakeSize++; 
+            score += 5;
+            generateFood(&apple, snake, snakeSize); 
+            
+             if (snakeSize >= (ROWS - 2) * (COLS - 2)) { 
+                system("clear");
+                wprintf(L"YOU WON!\n");
+                return snakeSize - 1; // Return score on win
+            }
+        }
+        
+        map[apple.x][apple.y] = APPLE; // Draw Frame
+        for (int i = 0; i < snakeSize; i++) {
+            map[snake[i].x][snake[i].y] = SNAKE;
+        }
+
+        wprintf(L"\x1b[H"); 
+        draw(map, score); 
+        usleep(200000); 
+    }
+
+    return score; // Return the final score
+}
+
 char gameOverScreen(int score){
 
     while (kbhit()) // In case the player presses any key after ending the game
@@ -254,7 +259,7 @@ char gameOverScreen(int score){
     wprintf(L"  :......::::..:::::..::..:::::..::........::::::.......::::::...:::::........::..:::::..::    \n");
     wprintf(L"\n");
     wprintf(L"\n\n");
-    wprintf(L"      Score: %d\n", score);
+    wprintf(L"      FINAL SCORE: %d\n", score);
     wprintf(L"\n\n      Select: \n\n");
     wprintf(L"      1 - Play Again\n");
     wprintf(L"\n      2 - Quit\n");
