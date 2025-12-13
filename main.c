@@ -222,7 +222,7 @@ int runGameSession() {
              if (snakeSize >= (ROWS - 2) * (COLS - 2)) { 
                 system("clear");
                 wprintf(L"YOU WON!\n");
-                return snakeSize - 1; // Return score on win
+                return score; // Return score on win
             }
         }
         
@@ -295,3 +295,4 @@ int kbhit() {
     ioctl(STDIN_FILENO, FIONREAD, &bytesWaiting);
     return bytesWaiting;
 }
+
