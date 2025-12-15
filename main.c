@@ -12,7 +12,7 @@
 #define ROWS 20
 #define COLS 40
 #define EMPTY L' '
-#define APPLE L'🍏'
+#define APPLE L'0'
 #define SNAKE L'■'
 
 typedef struct {
@@ -26,6 +26,7 @@ bool isWall(wchar_t character);
 void handleInput(char *direction);
 void generateFood(Point *food, Point snake[], int snakeSize);
 int runGameSession();
+void togglePause();
 char gameOverScreen(int score);
 void enableRawMode();
 void disableRawMode();
@@ -139,6 +140,11 @@ void generateFood(Point *apple, Point snake[], int snakeSize) {
 void handleInput(char *direction) {
     if (kbhit()) {
         char key = getchar(); // Read the key pressed
+
+        if (key == 'q') {
+            *direction = 'q'; 
+            return; // Exit function immediately
+        }
         
         switch (key) {
             case 'a':
@@ -187,6 +193,7 @@ int runGameSession() {
     map[snake[0].x][snake[0].y] = SNAKE; 
     draw(map, score);
     system("clear");
+    char lastDirection = direction;
 
     while (isGameRunning) {
         setupMap(map);
@@ -196,6 +203,13 @@ int runGameSession() {
         }
 
         handleInput(&direction); // User input
+
+        if (direction == 'q') {
+            togglePause();       // Enter the pause loop
+            direction = lastDirection; // Restore direction to keep moving
+        } else {
+            lastDirection = direction; // Update valid direction
+        }
         
         if (direction == 'w') snake[0].x--; // Move Head
         else if (direction == 's') snake[0].x++;
@@ -215,9 +229,9 @@ int runGameSession() {
         if (!isGameRunning) break; 
 
         if (snake[0].x == apple.x && snake[0].y == apple.y) { // Eat Apple
-            snakeSize++; 
-            score += 5;
-            generateFood(&apple, snake, snakeSize); 
+            snakeSize++; // Grow size
+            score += 5; // 5 More points
+            generateFood(&apple, snake, snakeSize); // Generate new food
             
              if (snakeSize >= (ROWS - 2) * (COLS - 2)) { 
                 system("clear");
@@ -237,6 +251,22 @@ int runGameSession() {
     }
 
     return score; // Return the final score
+}
+
+void togglePause() {
+    system("clear");
+    wprintf(L"\n\n");
+    wprintf(L"      == PAUSED ==\n\n");
+    wprintf(L"   Press 'q' to Resume\n");
+    
+    while (true) {
+        char key = getchar();
+        if (key == 'q') {
+            system("clear"); // Clear the "Paused" text before returning
+            return;
+        }
+        usleep(100000); // Small sleep to save CPU while waiting
+    }
 }
 
 char gameOverScreen(int score){
@@ -295,4 +325,3 @@ int kbhit() {
     ioctl(STDIN_FILENO, FIONREAD, &bytesWaiting);
     return bytesWaiting;
 }
-
