@@ -176,7 +176,7 @@ void handleInput(char *direction) {
 // This function runs ONE full game and returns the final score
 int runGameSession() {
 
-    Point snake[ROWS * COLS];
+    Point snake[ROWS * COLS]; // Even though the snake will not be the same as the map, it's safer to keep it like this, because C doesn't protect if you write outside the array
     int snakeSize = 1;
     int score = 5;
     Point apple;
@@ -229,7 +229,17 @@ int runGameSession() {
         if (!isGameRunning) break; 
 
         if (snake[0].x == apple.x && snake[0].y == apple.y) { // Eat Apple
-            snakeSize++; // Grow size
+
+            int growthAmount = 3;
+
+            for (int i = 0; i < growthAmount; i++)
+            {
+                if (snakeSize >= (ROWS - 2) * (COLS - 2)) break; // To check if we hit the max size to prevent crashing
+                snake[snakeSize].x = snake[snakeSize - 1].x; // Initialize the new segment to be smae position as the current tail
+                snake[snakeSize].y = snake[snakeSize - 1].y; // This prevents the new square spawning in a random coodinate (garbage memory)
+                snakeSize++; // Grow size
+            }     
+
             score += 5; // 5 More points
             generateFood(&apple, snake, snakeSize); // Generate new food
             
