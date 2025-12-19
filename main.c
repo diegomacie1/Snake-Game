@@ -14,6 +14,14 @@
 #define EMPTY L' '
 #define APPLE L'0'
 #define SNAKE L'■'
+#define COLOR_RESET   L"\x1b[0m"
+#define COLOR_RED     L"\x1b[31m"
+#define COLOR_GREEN   L"\x1b[32m"
+#define COLOR_YELLOW  L"\x1b[33m"
+#define COLOR_BLUE    L"\x1b[34m"
+#define COLOR_CYAN    L"\x1b[36m"
+#define COLOR_WHITE   L"\x1b[37m"
+#define COLOR_PINK    L"\x1b[95m"
 
 typedef struct {
     int x, y;
@@ -26,8 +34,10 @@ bool isWall(wchar_t character);
 void handleInput(char *direction);
 void generateFood(Point *food, Point snake[], int snakeSize);
 int runGameSession();
+int gameMenu();
 void togglePause();
 char gameOverScreen(int score);
+void showInstructions();
 void enableRawMode();
 void disableRawMode();
 int kbhit();
@@ -38,16 +48,24 @@ int main() {
     srand(time(NULL)); 
     enableRawMode();
 
-    bool keepPlaying = true;
+    bool appRunning = true;
 
-    while (keepPlaying) {
-        
-        int finalScore = runGameSession(); // Run the game and get the score
+    while (appRunning) {
 
-        int choice = gameOverScreen(finalScore); // Show Game Over menu
-        
-        if (choice == 2) {
-            keepPlaying = false;
+        int menuChoice = gameMenu(); // Show Main Menu
+
+        if (menuChoice == 1) {// PLAY GAME
+
+            int finalScore = runGameSession(); 
+            int choice = gameOverScreen(finalScore);
+            if (choice == 2) appRunning = false;
+        } 
+        else if (menuChoice == 2) {
+            showInstructions(); // Shows instructions then the loop restarts, showing menu again
+
+        } 
+        else if (menuChoice == 3) { // QUIT
+            appRunning = false;
         }
     }
     
@@ -90,14 +108,35 @@ void setupMap(wchar_t map[ROWS][COLS]) {
 }
 
 void draw(wchar_t map[ROWS][COLS], int score){
+
+    wprintf(L"\x1b[H"); // Prevents the flickering
     
     for (int i = 0; i < ROWS; i++) {
         for (int j = 0; j < COLS; j++) {   
-            wprintf(L"%lc", map[i][j]);
+            wchar_t tile = map[i][j];
+
+            if (tile == SNAKE) {
+                // Print Snake in GREEN
+                wprintf(L"%ls%lc%ls", COLOR_GREEN, tile, COLOR_RESET);
+            } 
+            else if (tile == APPLE) {
+                // Print Apple in RED
+                wprintf(L"%ls%lc%ls", COLOR_RED, tile, COLOR_RESET);
+            } 
+            else if (isWall(tile)) {
+                // Print Walls in CYAN (or any color you like)
+                wprintf(L"%ls%lc%ls", COLOR_CYAN, tile, COLOR_RESET);
+            } 
+            else {
+                // Print empty space normally
+                wprintf(L"%lc", tile);
+            }
         }
         wprintf(L"\n");
     }
-    wprintf(L"SCORE: %d", score);
+    
+    // Print the score in YELLOW
+    wprintf(L"%lsSCORE: %d%ls", COLOR_YELLOW, score, COLOR_RESET);
 }
 
 // Function to star the snake
@@ -181,7 +220,7 @@ int runGameSession() {
     int score = 5;
     Point apple;
     wchar_t map[ROWS][COLS];
-    char direction = 's'; 
+    char direction = 's';
     bool isGameRunning = true;
 
     setupMap(map);
@@ -263,6 +302,23 @@ int runGameSession() {
     return score; // Return the final score
 }
 
+int gameMenu() {
+    system("clear");
+    wprintf(L"%ls\n\n\n", COLOR_GREEN, COLOR_RESET);
+    wprintf(L"      S N A K E   G A M E%ls\n\n", COLOR_GREEN, COLOR_RESET);
+    wprintf(L"      [1] - Play Game%ls\n", COLOR_GREEN, COLOR_RESET);
+    wprintf(L"      [2] - Instructions%ls\n", COLOR_GREEN, COLOR_RESET);
+    wprintf(L"      [3] - Quit%ls\n", COLOR_RESET);
+
+    while (true) {
+        char key = getchar();
+        if (key == '1') return 1; // Play
+        if (key == '2') return 2; // Instructions
+        if (key == '3') return 3; // Quit
+        usleep(100000); 
+    }
+}
+
 void togglePause() {
     system("clear");
     wprintf(L"\n\n");
@@ -288,21 +344,21 @@ char gameOverScreen(int score){
 
     system("clear");
     wprintf(L"\n\n\n\n");
-    wprintf(L"\n");
-    wprintf(L"   :'######::::::'###::::'##::::'##:'########:::::'#######::'##::::'##:'########:'########:: \n");
-    wprintf(L"  '##... ##::::'## ##::: ###::'###: ##.....:::::'##.... ##: ##:::: ##: ##.....:: ##.... ##:    \n");
-    wprintf(L"   ##:::..::::'##:. ##:: ####'####: ##:::::::::: ##:::: ##: ##:::: ##: ##::::::: ##:::: ##:    \n");
-    wprintf(L"   ##::'####:'##:::. ##: ## ### ##: ######:::::: ##:::: ##: ##:::: ##: ######::: ########::    \n");
-    wprintf(L"   ##::: ##:: #########: ##. #: ##: ##...::::::: ##:::: ##:. ##:: ##:: ##...:::: ##.. ##:::    \n");
-    wprintf(L"   ##::: ##:: ##.... ##: ##:.:: ##: ##:::::::::: ##:::: ##::. ## ##::: ##::::::: ##::. ##::    \n");
-    wprintf(L"  . ######::: ##:::: ##: ##:::: ##: ########::::. #######::::. ###:::: ########: ##:::. ##:    \n");
-    wprintf(L"  :......::::..:::::..::..:::::..::........::::::.......::::::...:::::........::..:::::..::    \n");
-    wprintf(L"\n");
+    wprintf(L" %ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"   :'######::::::'###::::'##::::'##:'########:::::'#######::'##::::'##:'########:'########:: %ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"  '##... ##::::'## ##::: ###::'###: ##.....:::::'##.... ##: ##:::: ##: ##.....:: ##.... ##:    %ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"   ##:::..::::'##:. ##:: ####'####: ##:::::::::: ##:::: ##: ##:::: ##: ##::::::: ##:::: ##:    %ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"   ##::'####:'##:::. ##: ## ### ##: ######:::::: ##:::: ##: ##:::: ##: ######::: ########::    %ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"   ##::: ##:: #########: ##. #: ##: ##...::::::: ##:::: ##:. ##:: ##:: ##...:::: ##.. ##:::    %ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"   ##::: ##:: ##.... ##: ##:.:: ##: ##:::::::::: ##:::: ##::. ## ##::: ##::::::: ##::. ##::    %ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"  . ######::: ##:::: ##: ##:::: ##: ########::::. #######::::. ###:::: ########: ##:::. ##:    %ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"  :......::::..:::::..::..:::::..::........::::::.......::::::...:::::........::..:::::..::    %ls\n", COLOR_RED, COLOR_RESET);
+    wprintf(L" %ls\n", COLOR_YELLOW, COLOR_RESET);
     wprintf(L"\n\n");
-    wprintf(L"      FINAL SCORE: %d\n", score);
+    wprintf(L"      FINAL SCORE: %d%ls\n", score, COLOR_RED, COLOR_RESET);
     wprintf(L"\n\n      Select: \n\n");
-    wprintf(L"      1 - Play Again\n");
-    wprintf(L"\n      2 - Quit\n");
+    wprintf(L"      1 - Return to the main menu\n");
+    wprintf(L"\n      2 - Quit%ls\n", COLOR_RESET);
 
     while(true){
         char choice = getchar();
@@ -311,6 +367,29 @@ char gameOverScreen(int score){
     }
 
     return getchar();
+}
+
+void showInstructions() {
+    system("clear");
+    wprintf(L"%ls\n\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓%ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┃           HOW TO PLAY                ┃%ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┃                                      ┃%ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┃   [W] - Move UP                      ┃%ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┃   [S] - Move DOWN                    ┃%ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┃   [A] - Move LEFT                    ┃%ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┃   [D] - Move RIGHT                   ┃%ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┃                                      ┃%ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┃   [Q] - PAUSE Game                   ┃%ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┃   [X] - EXIT Immediately (In Game)   ┃%ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┃                                      ┃%ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┃   Goal: Eat the apples (0) to grow.  ┃%ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┃   Don't hit the walls or yourself!   ┃%ls\n", COLOR_CYAN, COLOR_RESET);
+    wprintf(L"      ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛%ls\n", COLOR_YELLOW, COLOR_RESET);
+    wprintf(L"\n       Press ANY KEY to go back to menu...");
+
+    while (kbhit()) getchar(); // Flush buffer
+    getchar(); // Wait for key
 }
 
 // Enable "Raw Mode" (disable waiting for Enter)
